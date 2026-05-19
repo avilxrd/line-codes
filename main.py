@@ -1,6 +1,8 @@
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from tkinter import ttk
+import random
 
 bits_example = "0011011001"
 
@@ -118,6 +120,22 @@ def rz(bits):
             signal += [1, 0]
     return signal
 
+#calcular métricas necessárias
+def calculate_metrics(signal, bits):
+    transitions = 0
+    for i in range(1, len(signal)):
+        if signal[i] != signal[i - 1]:
+            transitions += 1
+
+    avg_value = sum(signal) / len(signal) if signal else 0
+
+    if avg_value == int(avg_value):
+        avg_str = str(int(avg_value))
+    else:
+        avg_str = f"{avg_value:.2f}"
+
+    return transitions, avg_str
+
 # expande a amostragem
 def expand_signal(signal, half_bit_sample=50):
     expanded = []
@@ -177,16 +195,25 @@ def main():
     top = tk.Frame(window)
     top.pack(fill=tk.X, padx=10, pady=10)
 
-    entry = tk.Entry(top, font=("Times New Roman", 14))
+    opcoes_bits = [
+        "10101010",
+        "00000000",
+        "11111111",
+        "11001100",
+        "Aleatório de 16 bits"
+    ]
+
+    entry = ttk.Combobox(top, font=("Times New Roman", 14),
+                              values=opcoes_bits, state="editable")
     entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    entry.insert(0, "0011011001")
+    entry.set("0011011001")
 
     btn = tk.Button(top, text="Gerar", width=10)
     btn.pack(side=tk.LEFT, padx=10)
 
     opcoes = ["Todos gráficos", "NRZ-I", "NRZ-L", "AMI",
               "Pseudoternário", "Manchester", "Manchester Diferencial",
-              "RZ", "MLT-3", "2B1Q"
+              "RZ", "MLT-3", "2B1Q",
     ]
 
     selecionado = tk.StringVar(value="Todos gráficos")
@@ -215,6 +242,17 @@ def main():
     # visualização unica
     single_frame = tk.Frame(window)
 
+    metrics_label = tk.Label(
+        single_frame,
+        text="",
+        font=("Arial", 12, "bold"),
+        fg="#EC008C",
+        bg="#f0f0f0",
+        padx=10,
+        pady=8,
+        anchor="w"
+    )
+
     # lista de codificação
     codificacoes = [
         ("NRZ-L", nrz_level),
@@ -240,7 +278,13 @@ def main():
         canvas_widgets.clear()
 
         bits = entry.get().strip()
+
+        if bits == "Aleatório de 16 bits":
+            bits = ''.join(random.choice('01') for _ in range(16))
+            entry.set(bits)
+
         if not bits or any(c not in "01" for c in bits):
+            metrics_label.config(text="")
             return
 
         escolha = selecionado.get()
@@ -283,6 +327,15 @@ def main():
                     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
                     canvas_widgets.append(canvas)
+
+                    transitions, avg_value = calculate_metrics(sinal, bits)
+                    metrics_text = (
+                        f"Sequência: {bits} | "
+                        f"Transições: {transitions} | "
+                        f"Valor médio: {avg_value}"
+                    )
+                    metrics_label.config(text=metrics_text)
+                    metrics_label.pack(fill=tk.X, pady=(10, 0))
                     break
 
     gerar()
