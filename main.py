@@ -2,17 +2,7 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-bits_example = "010011"
-
-# unipolar
-def nrz(bits):
-    signal = []
-    for bit in bits:
-        if bit == '1':
-            signal += [1]
-        else:
-            signal += [0]
-    return signal
+bits_example = "0011011001"
 
 # polar
 def nrz_level(bits):
@@ -33,34 +23,6 @@ def nrz_invert(bits):
             level = -level
         else:
             signal += [level]
-    return signal
-
-def rz(bits):
-    signal = []
-    for bit in bits:
-        if bit == '0':
-            signal += [-1, 0]
-        else:
-            signal += [1, 0]
-    return signal
-
-def manchester(bits):
-    signal = []
-    for bit in bits:
-        if bit == '1':
-            signal += [-1, 1]
-        else:
-            signal += [1, -1]
-    return signal
-
-def manchester_diferencial(bits):
-    nivel = 1
-    signal = []
-    for bit in bits:
-        if bit == '0':
-            nivel = -nivel
-        signal += [nivel, -nivel]
-        nivel = -nivel
     return signal
 
 # bipolar
@@ -96,6 +58,25 @@ def pseudoternary(bits):
 
     return signal
 
+def manchester(bits):
+    signal = []
+    for bit in bits:
+        if bit == '1':
+            signal += [-1, 1]
+        else:
+            signal += [1, -1]
+    return signal
+
+def manchester_diferencial(bits):
+    nivel = 1
+    signal = []
+    for bit in bits:
+        if bit == '0':
+            nivel = -nivel
+        signal += [nivel, -nivel]
+        nivel = -nivel
+    return signal
+
 # especiais
 def mlt3(bits):
     levels = [0, 1, 0, -1]
@@ -109,6 +90,33 @@ def mlt3(bits):
 
     return signal
 
+def _2b1q(bits):
+
+    if len(bits) % 2 == 1:
+        bits = bits + '0'
+
+    signal = []
+    map = {
+        '00': [1],
+        '01': [3],
+        '10': [-1],
+        '11': [-3]
+    }
+
+    for i in range(0, len(bits), 2):
+        par = bits[i:i + 2]
+        signal += map[par]
+
+    return signal
+
+def rz(bits):
+    signal = []
+    for bit in bits:
+        if bit == '0':
+            signal += [-1, 0]
+        else:
+            signal += [1, 0]
+    return signal
 
 # expande a amostragem
 def expand_signal(signal, half_bit_sample=50):
@@ -118,7 +126,7 @@ def expand_signal(signal, half_bit_sample=50):
     return expanded
 
 # plota o gráfico da codificação
-def plot_signal(signal, bits, cod):
+def plot_signal(signal, bits, cod, bit_per_symbol=1):
     fig = Figure(figsize=(10, 3))
     ax = fig.add_subplot(111)
 
@@ -140,9 +148,17 @@ def plot_signal(signal, bits, cod):
         x_pos = i * bit_length + bit_length / 2
         ax.text(x_pos, 1.5, str(bit), ha='center', fontsize=10)
 
-    ax.set_ylim(-1.5, 2)
-    ax.set_yticks([-1, 0, 1])
-    ax.set_yticklabels(['-1', '0', '+1'])
+    if cod == "2B1Q":
+        ax.set_ylim(-4, 4)
+        ax.set_yticks([-3, -1, 0, 1, 3])
+        ax.set_yticklabels(['-3', '-1', '0', '+1', '+3'])
+
+        ax.axhline(3, color='gray', linewidth=0.75, linestyle='--')
+        ax.axhline(-3, color='gray', linewidth=0.75, linestyle='--')
+    else:
+        ax.set_ylim(-1.5, 2)
+        ax.set_yticks([-1, 0, 1])
+        ax.set_yticklabels(['-1', '0', '+1'])
 
     ax.set_title(f"{cod}")
     ax.axhline(0, color='black', linewidth=0.75)
@@ -153,26 +169,24 @@ def plot_signal(signal, bits, cod):
 
     return fig
 
-
 def main():
     window = tk.Tk()
     window.title("Códigos de Linha")
-    window.geometry("1600x900")
+    window.geometry("1280x720")
 
-    # --------- TOPO ---------
     top = tk.Frame(window)
     top.pack(fill=tk.X, padx=10, pady=10)
 
     entry = tk.Entry(top, font=("Times New Roman", 14))
     entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    entry.insert(0, "010011")
+    entry.insert(0, "0011011001")
 
     btn = tk.Button(top, text="Gerar", width=10)
     btn.pack(side=tk.LEFT, padx=10)
 
-    opcoes = ["Todos gráficos", "NRZ Unipolar", "NRZ Polar", "NRZ-I",
-        "RZ", "Manchester","Manchester Diferencial", "AMI","Pseudoternary",
-        "MLT-3"
+    opcoes = ["Todos gráficos", "NRZ-I", "NRZ-L", "AMI",
+              "Pseudoternário", "Manchester", "Manchester Diferencial",
+              "RZ", "MLT-3", "2B1Q"
     ]
 
     selecionado = tk.StringVar(value="Todos gráficos")
@@ -180,11 +194,11 @@ def main():
     dropdown.config(width=18)
     dropdown.pack(side=tk.LEFT, padx=5)
 
-    # --------- GRID ---------
+    # grid
     grid_frame = tk.Frame(window)
     grid_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    rows, cols = 3, 4
+    rows, cols = 3, 3
     cells = []
 
     for r in range(rows):
@@ -198,25 +212,25 @@ def main():
         frame.grid(row=r, column=c, sticky="nsew", padx=5, pady=5)
         cells.append(frame)
 
-    # --------- SINGLE VIEW ---------
+    # visualização unica
     single_frame = tk.Frame(window)
 
-    # --------- CODIFICAÇÕES ---------
+    # lista de codificação
     codificacoes = [
-        ("NRZ Unipolar", nrz),
-        ("NRZ Polar", nrz_level),
+        ("NRZ-L", nrz_level),
         ("NRZ-I", nrz_invert),
-        ("RZ", rz),
+        ("AMI", ami),
+        ("Pseudoternário", pseudoternary),
         ("Manchester", manchester),
         ("Manchester Diferencial", manchester_diferencial),
-        ("AMI", ami),
-        ("Pseudoternary", pseudoternary),
+        ("RZ", rz),
         ("MLT-3", mlt3),
+        ("2B1Q", _2b1q)
     ]
 
     canvas_widgets = []
 
-    # --------- GERAR ---------
+    # gerar os canvas
     def gerar():
         nonlocal canvas_widgets
 
@@ -231,7 +245,7 @@ def main():
 
         escolha = selecionado.get()
 
-        # --------- MODO GRID ---------
+        # modo de grid
         if escolha == "Todos gráficos":
             single_frame.pack_forget()
             grid_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -252,7 +266,7 @@ def main():
 
                 canvas_widgets.append(canvas)
 
-        # --------- MODO SINGLE ---------
+        # modo unico
         else:
             grid_frame.pack_forget()
             single_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -272,7 +286,6 @@ def main():
                     break
 
     gerar()
-    # conectar botão
     btn.config(command=gerar)
 
     window.mainloop()
